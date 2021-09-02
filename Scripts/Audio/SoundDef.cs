@@ -6,16 +6,15 @@ using UnityEditor;
 #endif
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Audio/Sound Def")]
 public class SoundDef : ScriptableObject
 {
-    public SoundManager.SoundType   type = SoundManager.SoundType.Sfx;
-    public bool                     is3D = false;
-    public bool                     isLoop = false;
-    public bool                     isScene = true;
-    public AudioClip[]              audioClip;
-    public float                    pitchRange = 0.0f; 
-    public float                    volumeRange = 0.0f;
+    public SoundManager.SoundType type = SoundManager.SoundType.Sfx;
+    public bool is3D = false;
+    public bool isLoop = false;
+    public bool isScene = true;
+    public AudioClip[] audioClip;
+    public float pitchRange = 0.0f; 
+    public float volumeRange = 0.0f;
 
     public AudioClip GetRandomClip()
     {
@@ -59,6 +58,10 @@ public class SoundDef : ScriptableObject
         {
             SoundDatabase.Instance.sounds.Add(soundDef);
         }
+        else
+        {
+            Debug.Log("No Sound database found: <b>" + soundDef.name + "</b> will not be added");
+        }
     }
 
     [MenuItem("Assets/Convert/Sound Def")]
@@ -80,6 +83,15 @@ public class SoundDef : ScriptableObject
         }
 
         return true;
+    }
+
+    private void OnDestroy() 
+    {
+        if (SoundDatabase.Instance != null && SoundDatabase.Instance.sounds.Contains(this))
+        {
+            Debug.Log("Removed: " + this.name + "from sounds database");
+            SoundDatabase.Instance.sounds.Remove(this);
+        }
     }
 #endif
 }
