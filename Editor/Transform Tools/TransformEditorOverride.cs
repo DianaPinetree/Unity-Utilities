@@ -4,22 +4,17 @@ using UnityEngine;
 using UnityEditor;
 using System;
 using System.Reflection;
+using UnityEditor.EditorTools;
 
 [CustomEditor(typeof(Transform), true)]
 [CanEditMultipleObjects]
 public class TransformEditorOverride : Editor
 {
-    private enum TransformEditMode
-    {
-        None = 0,
-        Stick,
-        Align
-    }
     private readonly string[] alignAxisOptions = { "X", "-X", "Y", "-Y", "Z", "-Z" };
     Editor transformDefaultEditor;
     Transform transform;
-    [SerializeField] private int alignAxisSelected = 0;
-    [SerializeField] private TransformEditMode mode = TransformEditMode.None;
+    Type lastActiveTool;
+    [SerializeField] private int alignAxisSelected = 2;
     private bool stickUpright;
     private bool alignUpright;
     private bool stick, align;
@@ -63,6 +58,21 @@ public class TransformEditorOverride : Editor
         alignUpright = GUILayout.Toggle(alignUpright, "Upright",
             EditorStyles.miniButtonRight);
         EditorGUILayout.EndHorizontal();
+
+        if (stick || align)
+        {
+            if (ToolManager.activeToolType != typeof(AlignMoveTool))
+            {
+                lastActiveTool = ToolManager.activeToolType;
+                ToolManager.SetActiveTool<AlignMoveTool>();
+
+                AlignMoveTool.SetMode(stick, align, stickUpright, alignAxisSelected);
+            }
+        }
+        else if (ToolManager.activeToolType == typeof(AlignMoveTool))
+        {
+            ToolManager.SetActiveTool(lastActiveTool);
+        }
     }
 
     private void OnSceneGUI()
@@ -88,12 +98,14 @@ public class TransformEditorOverride : Editor
                 if (current.keyCode == KeyCode.S)
                 {
                     stick = true;
+                    AlignMoveTool.SetMode(stick, align, stickUpright, alignAxisSelected);
                     current.Use();
                     Repaint();
                 }
-                if (current.keyCode == KeyCode.A)
+                else if (current.keyCode == KeyCode.A)
                 {
                     align = true;
+                    AlignMoveTool.SetMode(stick, align, stickUpright, alignAxisSelected);
                     current.Use();
                     Repaint();
                 }
@@ -102,12 +114,14 @@ public class TransformEditorOverride : Editor
                 if (current.keyCode == KeyCode.S)
                 {
                     stick = false;
+                    AlignMoveTool.SetMode(stick, align, stickUpright, alignAxisSelected);
                     current.Use();
                     Repaint();
                 }
                 if (current.keyCode == KeyCode.A)
                 {
                     align = false;
+                    AlignMoveTool.SetMode(stick, align, stickUpright, alignAxisSelected);
                     current.Use();
                     Repaint();
                 }

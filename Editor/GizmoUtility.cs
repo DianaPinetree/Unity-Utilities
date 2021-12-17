@@ -55,4 +55,182 @@ public static class GizmoUtility
             Handles.DrawAAConvexPolygon(arrowHead);
         }
     }
+
+    public static Vector3 SceneMousePosition(out Vector3 normal)
+    {
+        Vector3 mousePosition = Event.current.mousePosition;
+        var placeObject = HandleUtility.PlaceObject(mousePosition, out var newPosition, out normal);
+        return placeObject ? newPosition : HandleUtility.GUIPointToWorldRay(mousePosition).GetPoint(10);
+    }
+
+    public static Vector3 SceneMousePosition()
+    {
+        Vector3 mousePosition = Event.current.mousePosition;
+        var placeObject = HandleUtility.PlaceObject(mousePosition, out var newPosition, out var normal);
+        return placeObject ? newPosition : HandleUtility.GUIPointToWorldRay(mousePosition).GetPoint(10);
+    }
+}
+
+public static class CustomHandles
+{
+    // Internal State Variables
+    private static Vector2 handleMouseStart;
+    private static Vector2 handleMouseCurrent;
+    private static Vector3 handleWorldStart;
+    private static float handleClickTime = 0;
+    private static int handleClickID;
+    private static float handleDoubleClickInterval = 0.5f;
+    private static bool handleHasMoved;
+    public enum HandleEventResult
+    {
+        none = 0,
+        LMBPress,
+        LMBClick,
+        LMBDoubleClick,
+        LMBDrag,
+        LMBRelease,
+
+        RMBPress,
+        RMBClick,
+        RMBDoubleClick,
+        RMBDrag,
+        RMBRelease,
+    };
+
+    public static int lastHandleID;
+
+    public static bool ButtonHandle(int controlID, Vector3 position, float handleSize, Handles.CapFunction cap)
+    {
+        bool held = false;
+        Event evt = Event.current;
+        switch (evt.GetTypeForControl(controlID))
+        {
+            case EventType.MouseDown:
+                if ((HandleUtility.nearestControl == controlID && evt.button == 0) && GUIUtility.hotControl == 0)
+                {
+                    // Grab focus of control
+                    GUIUtility.hotControl = controlID;
+                    held = true;
+                    evt.Use();
+                    EditorGUIUtility.SetWantsMouseJumping(1);
+                }
+                break;
+            case EventType.MouseUp:
+                if (GUIUtility.hotControl == controlID && (evt.button == 0 || evt.button == 2))
+                {
+                    GUIUtility.hotControl = 0;
+                    held = false;
+                    evt.Use();
+                    EditorGUIUtility.SetWantsMouseJumping(0);
+                }
+                break;
+            case EventType.MouseDrag:
+                if (GUIUtility.hotControl == controlID)
+                {
+                    held = true;
+                    GUI.changed = true;
+                    evt.Use();
+                }
+                break;
+            case EventType.MouseMove:
+                if (GUIUtility.hotControl == controlID)
+                    HandleUtility.Repaint();
+                break;
+            case EventType.Repaint:
+                // Selected
+                if (GUIUtility.hotControl == controlID)
+                {
+                    Handles.color = Handles.selectedColor;
+                }
+                // Hovered
+                else if (controlID == HandleUtility.nearestControl && GUIUtility.hotControl == 0)
+                {
+                    Handles.color = Handles.preselectionColor;
+                }
+
+                cap(controlID, position, Quaternion.identity, handleSize, EventType.Repaint);
+                Handles.color = Color.white;
+
+                break;
+            case EventType.Layout:
+                cap(controlID, position, Quaternion.identity, handleSize, EventType.Layout);
+                break;
+        }
+
+        return held;
+    }
+
+    public static Vector3 DragHandle(int controlID, Vector3 position, float handleSize,
+        Handles.CapFunction cap, Color handleColor)
+    {
+
+        Event evt = Event.current;
+        switch (evt.GetTypeForControl(controlID))
+        {
+            case EventType.MouseDown:
+                if ((HandleUtility.nearestControl == controlID && evt.button == 0) && GUIUtility.hotControl == 0)
+                {
+                    // Grab focus of control
+                    GUIUtility.hotControl = controlID;
+                    handleMouseCurrent = handleMouseStart = evt.mousePosition;
+                    handleWorldStart = position;
+                    evt.Use();
+                    EditorGUIUtility.SetWantsMouseJumping(1);
+                }
+                break;
+            case EventType.MouseUp:
+                if (GUIUtility.hotControl == controlID && (evt.button == 0 || evt.button == 2))
+                {
+                    GUIUtility.hotControl = 0;
+                    evt.Use();
+                    EditorGUIUtility.SetWantsMouseJumping(0);
+                }
+                break;
+            case EventType.MouseDrag:
+                if (GUIUtility.hotControl == controlID)
+                {
+                    handleMouseCurrent += new Vector2(evt.delta.x, -evt.delta.y);
+                    Vector3 tempPos = Camera.current.WorldToScreenPoint(Handles.matrix.MultiplyPoint(handleWorldStart))
+                        + (Vector3)(handleMouseCurrent - handleMouseStart);
+
+                    position = Handles.matrix.inverse.MultiplyPoint(Camera.current.ScreenToWorldPoint(tempPos));
+
+                    if (Camera.current.transform.forward == Vector3.forward || Camera.current.transform.forward == -Vector3.forward)
+                        position.z = handleWorldStart.z;
+                    if (Camera.current.transform.forward == Vector3.up || Camera.current.transform.forward == -Vector3.up)
+                        position.y = handleWorldStart.y;
+                    if (Camera.current.transform.forward == Vector3.right || Camera.current.transform.forward == -Vector3.right)
+                        position.x = handleWorldStart.x;
+                    
+                    GUI.changed = true;
+                    evt.Use();
+                }
+                break;
+            case EventType.MouseMove:
+                if (GUIUtility.hotControl == controlID)
+                    HandleUtility.Repaint();
+                break;
+            case EventType.Repaint:
+                // Selected
+                if (GUIUtility.hotControl == controlID)
+                {
+                    Handles.color = Handles.selectedColor;
+                }
+                // Hovered
+                else if (controlID == HandleUtility.nearestControl && GUIUtility.hotControl == 0)
+                {
+                    Handles.color = Handles.preselectionColor;
+                }
+
+                cap(controlID, position, Quaternion.identity, handleSize, EventType.Repaint);
+                Handles.color = Color.white;
+
+                break;
+            case EventType.Layout:
+                cap(controlID, position, Quaternion.identity, handleSize, EventType.Layout);
+                break;
+        }
+
+        return position;
+    }
 }
